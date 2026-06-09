@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Аналітична система ресторану</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="brand">
+            <span class="brand-mark">CA</span>
+            <span>
+                <strong>Catering Analytics</strong>
+                <small>Облік і аналітика</small>
+            </span>
+        </div>
+
+        <nav class="nav" aria-label="Основна навігація">
+            <button class="nav-button active" data-view="dashboard" title="Аналітика">
+                <span>📊</span> Аналітика
+            </button>
+            <button class="nav-button" data-view="orders" title="Замовлення">
+                <span>🧾</span> Замовлення
+            </button>
+            <button class="nav-button" data-view="menu" title="Меню">
+                <span>🍽</span> Меню
+            </button>
+            <button class="nav-button" data-view="directories" title="Довідники">
+                <span>👥</span> Довідники
+            </button>
+        </nav>
+
+        <a class="swagger-link" href="/swagger" target="_blank" rel="noreferrer">Swagger API</a>
+    </aside>
+
+    <main class="app-shell">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">Дипломний навчальний проєкт</p>
+                <h1>Інформаційна аналітична система закладу громадського харчування</h1>
+            </div>
+            <button id="refreshBtn" class="primary-button" type="button">Оновити дані</button>
+        </header>
+
+        <section id="message" class="message" hidden></section>
+
+        <section id="dashboard" class="view active">
+            <div class="metrics-grid">
+                <article class="metric">
+                    <span>Замовлення</span>
+                    <strong id="totalOrders">0</strong>
+                </article>
+                <article class="metric">
+                    <span>Продажі</span>
+                    <strong id="totalSales">0 ₴</strong>
+                </article>
+                <article class="metric">
+                    <span>Середній чек</span>
+                    <strong id="averageCheck">0 ₴</strong>
+                </article>
+            </div>
+
+            <div class="content-grid">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Продажі за працівниками</h2>
+                    </div>
+                    <div id="employeeSalesChart" class="bar-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Виручка за категоріями</h2>
+                    </div>
+                    <div id="categoryRevenueChart" class="bar-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Популярні страви</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Страва</th>
+                                    <th>Кількість</th>
+                                    <th>Виручка</th>
+                                </tr>
+                            </thead>
+                            <tbody id="popularDishesBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Замовлення по днях</h2>
+                    </div>
+                    <div id="ordersByDayChart" class="bar-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Виручка за столиками</h2>
+                    </div>
+                    <div id="tableRevenueChart" class="bar-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Завантаженість столиків</h2>
+                    </div>
+                    <div id="tableOccupancyList" class="entity-list"></div>
+                </section>
+            </div>
+        </section>
+
+        <section id="orders" class="view">
+            <div class="two-column">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Нове замовлення</h2>
+                    </div>
+                    <form id="orderForm" class="form-stack">
+                        <label>
+                            Столик
+                            <select id="orderTable" required></select>
+                        </label>
+                        <label>
+                            Працівник
+                            <select id="orderEmployee" required></select>
+                        </label>
+                        <div class="order-items-head">
+                            <strong>Позиції</strong>
+                            <button id="addOrderItemBtn" class="secondary-button" type="button">Додати страву</button>
+                        </div>
+                        <div id="orderItems" class="order-items"></div>
+                        <div class="form-total">
+                            <span>Попередня сума</span>
+                            <strong id="orderPreviewTotal">0 ₴</strong>
+                        </div>
+                        <button class="primary-button" type="submit">Створити замовлення</button>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Фільтри</h2>
+                    </div>
+                    <form id="orderFilters" class="filters-grid">
+                        <label>
+                            Від
+                            <input id="filterFrom" type="date">
+                        </label>
+                        <label>
+                            До
+                            <input id="filterTo" type="date">
+                        </label>
+                        <label>
+                            Столик
+                            <select id="filterTable">
+                                <option value="">Усі</option>
+                            </select>
+                        </label>
+                        <label>
+                            Працівник
+                            <select id="filterEmployee">
+                                <option value="">Усі</option>
+                            </select>
+                        </label>
+                        <label>
+                            Статус
+                            <select id="filterStatus">
+                                <option value="">Усі</option>
+                                <option>New</option>
+                                <option>InProgress</option>
+                                <option>Completed</option>
+                                <option>Cancelled</option>
+                            </select>
+                        </label>
+                        <button class="secondary-button" type="submit">Застосувати</button>
+                    </form>
+                </section>
+            </div>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Список замовлень</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата</th>
+                                <th>Столик</th>
+                                <th>Працівник</th>
+                                <th>Сума</th>
+                                <th>Статус</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+
+        <section id="menu" class="view">
+            <div class="two-column">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 id="dishFormTitle">Нова страва</h2>
+                    </div>
+                    <form id="dishForm" class="form-stack">
+                        <input id="dishId" type="hidden">
+                        <label>
+                            Назва
+                            <input id="dishName" type="text" required>
+                        </label>
+                        <label>
+                            Опис
+                            <textarea id="dishDescription" rows="3"></textarea>
+                        </label>
+                        <label>
+                            Ціна
+                            <input id="dishPrice" type="number" min="0.01" step="0.01" required>
+                        </label>
+                        <label>
+                            Категорія
+                            <select id="dishCategory" required></select>
+                        </label>
+                        <label class="checkbox-line">
+                            <input id="dishAvailable" type="checkbox" checked>
+                            Доступна для замовлення
+                        </label>
+                        <div class="button-row">
+                            <button class="primary-button" type="submit">Зберегти</button>
+                            <button id="cancelDishEdit" class="secondary-button" type="button">Скасувати</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Меню закладу</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Страва</th>
+                                    <th>Ціна</th>
+                                    <th>Категорія</th>
+                                    <th>Статус</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dishesBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section id="directories" class="view">
+            <div class="directory-grid">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Столики</h2>
+                    </div>
+                    <form id="tableForm" class="compact-form">
+                        <input id="tableNumber" placeholder="Номер столика" type="number" min="1" required>
+                        <input id="tableSeats" placeholder="Кількість місць" type="number" min="1" required>
+                        <select id="tableStatus">
+                            <option>Free</option>
+                            <option>Occupied</option>
+                            <option>Reserved</option>
+                            <option>Cleaning</option>
+                        </select>
+                        <button class="primary-button" type="submit">Додати</button>
+                    </form>
+                    <div id="tablesList" class="entity-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Працівники</h2>
+                    </div>
+                    <form id="employeeForm" class="compact-form">
+                        <input id="employeeName" placeholder="ПІБ" required>
+                        <input id="employeePosition" placeholder="Посада">
+                        <input id="employeePhone" placeholder="Телефон">
+                        <input id="employeeEmail" placeholder="Email" type="email">
+                        <button class="primary-button" type="submit">Додати</button>
+                    </form>
+                    <div id="employeesList" class="entity-list"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Категорії</h2>
+                    </div>
+                    <form id="categoryForm" class="compact-form">
+                        <input id="categoryName" placeholder="Назва" required>
+                        <textarea id="categoryDescription" placeholder="Опис" rows="2"></textarea>
+                        <button class="primary-button" type="submit">Додати</button>
+                    </form>
+                    <div id="categoriesList" class="entity-list"></div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

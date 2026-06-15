@@ -1,10 +1,12 @@
 using CateringAnalyticsSystem.Models;
 using CateringAnalyticsSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringAnalyticsSystem.Controllers;
 
 [ApiController]
+[Authorize(Roles = "Admin,Waiter")]
 [Route("api/[controller]")]
 public class CategoriesController : ControllerBase
 {
@@ -25,6 +27,7 @@ public class CategoriesController : ControllerBase
         return category is null ? NotFound() : Ok(category);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<Category>> Create(Category category)
     {
@@ -39,6 +42,7 @@ public class CategoriesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, Category category)
     {
@@ -53,6 +57,7 @@ public class CategoriesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

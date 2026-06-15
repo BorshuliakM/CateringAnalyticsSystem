@@ -1,10 +1,12 @@
 using CateringAnalyticsSystem.DTOs;
 using CateringAnalyticsSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringAnalyticsSystem.Controllers;
 
 [ApiController]
+[Authorize(Roles = "Admin,Waiter")]
 [Route("api/[controller]")]
 public class DiningTablesController : ControllerBase
 {
@@ -31,6 +33,7 @@ public class DiningTablesController : ControllerBase
         return Ok(await _diningTableService.GetByStatusAsync(status));
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<DiningTableDto>> Create(CreateDiningTableDto dto)
     {
@@ -45,6 +48,7 @@ public class DiningTablesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, UpdateDiningTableDto dto)
     {
@@ -59,6 +63,7 @@ public class DiningTablesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> ChangeStatus(int id, ChangeDiningTableStatusRequest request)
     {
@@ -73,6 +78,7 @@ public class DiningTablesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

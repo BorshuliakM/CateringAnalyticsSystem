@@ -1,10 +1,12 @@
 using CateringAnalyticsSystem.Models;
 using CateringAnalyticsSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringAnalyticsSystem.Controllers;
 
 [ApiController]
+[Authorize(Roles = "Admin")]
 [Route("api/[controller]")]
 public class EmployeesController : ControllerBase
 {

@@ -54,5 +54,15 @@ public class ApplicationDbContext : DbContext
             .WithOne(oi => oi.Dish)
             .HasForeignKey(oi => oi.DishId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Username)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Employee)
+            .WithMany()
+            .HasForeignKey(u => u.EmployeeId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

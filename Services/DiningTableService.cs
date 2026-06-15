@@ -11,8 +11,7 @@ public class DiningTableService : IDiningTableService
     {
         "Free",
         "Occupied",
-        "Reserved",
-        "Cleaning"
+        "Reserved"
     };
 
     private readonly ApplicationDbContext _context;
@@ -149,7 +148,7 @@ public class DiningTableService : IDiningTableService
     {
         if (string.IsNullOrWhiteSpace(status) || !AllowedStatuses.Contains(status))
         {
-            throw new ArgumentException("Dining table status must be Free, Occupied, Reserved or Cleaning.");
+            throw new ArgumentException("Dining table status must be Free, Occupied or Reserved.");
         }
     }
 

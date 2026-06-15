@@ -46,10 +46,50 @@
         <section id="message" class="message" hidden></section>
 
         <section id="dashboard" class="view active">
+            <section class="panel analytics-filter-panel">
+                <form id="analyticsFilters" class="filters-grid">
+                    <label>
+                        From
+                        <input id="analyticsFrom" type="date">
+                    </label>
+                    <label>
+                        To
+                        <input id="analyticsTo" type="date">
+                    </label>
+                    <label>
+                        Employee
+                        <select id="analyticsEmployee">
+                            <option value="">All</option>
+                        </select>
+                    </label>
+                    <label>
+                        Table
+                        <select id="analyticsTable">
+                            <option value="">All</option>
+                        </select>
+                    </label>
+                    <button class="secondary-button" type="submit">Apply</button>
+                    <button id="resetAnalyticsFilters" class="secondary-button" type="button">Reset</button>
+                    <button id="downloadOrdersCsv" class="primary-button" type="button">Download CSV</button>
+                </form>
+            </section>
+
             <div class="metrics-grid">
                 <article class="metric">
                     <span>Замовлення</span>
                     <strong id="totalOrders">0</strong>
+                </article>
+                <article class="metric">
+                    <span>Completed</span>
+                    <strong id="completedOrders">0</strong>
+                </article>
+                <article class="metric">
+                    <span>Cancelled</span>
+                    <strong id="cancelledOrders">0</strong>
+                </article>
+                <article class="metric">
+                    <span>Active</span>
+                    <strong id="activeOrders">0</strong>
                 </article>
                 <article class="metric">
                     <span>Продажі</span>
@@ -278,7 +318,6 @@
                             <option>Free</option>
                             <option>Occupied</option>
                             <option>Reserved</option>
-                            <option>Cleaning</option>
                         </select>
                         <button class="primary-button" type="submit">Додати</button>
                     </form>

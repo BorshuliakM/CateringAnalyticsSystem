@@ -4,12 +4,12 @@ namespace CateringAnalyticsSystem.Services;
 
 public interface IAnalyticsService
 {
-    Task<AnalyticsSummaryDto> GetSummaryAsync();
-    Task<SalesByPeriodDto> GetSalesByPeriodAsync(DateTime from, DateTime to);
-    Task<List<PopularDishDto>> GetPopularDishesAsync();
-    Task<List<SalesByEmployeeDto>> GetSalesByEmployeeAsync();
+    Task<AnalyticsSummaryDto> GetSummaryAsync(ReportFilterDto filter);
+    Task<List<SalesByPeriodDto>> GetSalesByPeriodAsync(ReportFilterDto filter);
+    Task<List<PopularDishDto>> GetPopularDishesAsync(ReportFilterDto filter);
+    Task<List<SalesByEmployeeDto>> GetSalesByEmployeeAsync(ReportFilterDto filter);
     Task<List<OrdersCountByDayDto>> GetOrdersCountByDayAsync();
-    Task<List<RevenueByCategoryDto>> GetRevenueByCategoryAsync();
-    Task<List<RevenueByTableDto>> GetRevenueByTableAsync();
-    Task<List<TableOccupancyDto>> GetTableOccupancyAsync();
+    Task<List<RevenueByCategoryDto>> GetRevenueByCategoryAsync(ReportFilterDto filter);
+    Task<List<RevenueByTableDto>> GetRevenueByTableAsync(ReportFilterDto filter);
+    Task<List<TableOccupancyDto>> GetTableOccupancyAsync(ReportFilterDto filter);
 }

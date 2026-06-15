@@ -6,7 +6,9 @@ public class OrderDetailsDto
     public DateTime OrderDate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
+    public int DiningTableId { get; set; }
     public int DiningTableNumber { get; set; }
+    public int EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public List<OrderItemDetailsDto> Items { get; set; } = new();
 }

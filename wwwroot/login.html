@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | Catering Analytics</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <section class="panel login-panel">
+            <div class="panel-header">
+                <h1>Catering Analytics</h1>
+            </div>
+            <form id="loginForm" class="form-stack">
+                <label>
+                    Username
+                    <input id="username" autocomplete="username" required>
+                </label>
+                <label>
+                    Password
+                    <input id="password" type="password" autocomplete="current-password" required>
+                </label>
+                <button class="primary-button" type="submit">Login</button>
+                <p id="loginMessage" class="message error" hidden></p>
+            </form>
+        </section>
+    </main>
+    <script>
+        document.querySelector("#loginForm").addEventListener("submit", async event => {
+            event.preventDefault();
+            const message = document.querySelector("#loginMessage");
+            message.hidden = true;
+
+            try {
+                const response = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: document.querySelector("#username").value,
+                        password: document.querySelector("#password").value
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || "Login failed.");
+                }
+
+                localStorage.setItem("auth", JSON.stringify(data));
+                window.location.href = data.role === "Waiter" ? "/index.html#orders" : "/index.html#dashboard";
+            } catch (error) {
+                message.textContent = error.message;
+                message.hidden = false;
+            }
+        });
+    </script>
+</body>
+</html>

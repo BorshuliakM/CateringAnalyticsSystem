@@ -7,17 +7,34 @@ const state = {
     analytics: {}
 };
 
-const tableStatuses = ["Free", "Occupied", "Reserved", "Cleaning"];
+const auth = JSON.parse(localStorage.getItem("auth") || "null");
+
+if (!auth?.token) {
+    window.location.href = "/login.html";
+}
+
+function authHeaders(extra = {}) {
+    return {
+        ...extra,
+        Authorization: `Bearer ${auth.token}`
+    };
+}
+
+function isAdmin() {
+    return auth?.role === "Admin";
+}
+
+const tableStatuses = ["Free", "Occupied", "Reserved"];
 const orderStatuses = ["New", "InProgress", "Completed", "Cancelled"];
 
 const api = {
     async get(url) {
-        return handleResponse(await fetch(url));
+        return handleResponse(await fetch(url, { headers: authHeaders() }));
     },
     async send(url, method, body) {
         const response = await fetch(url, {
             method,
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(body)
         });
 
@@ -37,7 +54,7 @@ const api = {
         return this.send(url, "PATCH", body);
     },
     async delete(url) {
-        const response = await fetch(url, { method: "DELETE" });
+        const response = await fetch(url, { method: "DELETE", headers: authHeaders() });
         if (!response.ok) {
             throw new Error("Не вдалося видалити запис.");
         }
@@ -102,41 +119,45 @@ function statusBadge(status) {
         Cancelled: "danger",
         Free: "ok",
         Occupied: "warning",
-        Reserved: "",
-        Cleaning: "danger"
+        Reserved: ""
     };
     return `<span class="badge ${map[status] || ""}">${status}</span>`;
 }
 
 async function loadData() {
     try {
-        const [
-            categories,
-            dishes,
-            diningTables,
-            employees,
-            orders,
-            summary,
-            popularDishes,
-            salesByEmployee,
-            ordersCountByDay,
-            revenueByCategory,
-            revenueByTable,
-            tableOccupancy
-        ] = await Promise.all([
+        const [categories, dishes, diningTables, orders] = await Promise.all([
             api.get("/api/categories"),
             api.get("/api/dishes"),
             api.get("/api/diningtables"),
-            api.get("/api/employees"),
-            api.get("/api/orders"),
-            api.get("/api/analytics/summary"),
-            api.get("/api/analytics/popular-dishes"),
-            api.get("/api/analytics/sales-by-employee"),
-            api.get("/api/analytics/orders-count-by-day"),
-            api.get("/api/analytics/revenue-by-category"),
-            api.get("/api/analytics/revenue-by-table"),
-            api.get("/api/analytics/table-occupancy")
+            api.get("/api/orders")
         ]);
+
+        const employees = isAdmin() ? await api.get("/api/employees") : [];
+        let analytics = {};
+
+        if (isAdmin()) {
+            const analyticsQuery = getAnalyticsQuery();
+            const [
+                summary,
+                popularDishes,
+                salesByEmployee,
+                ordersCountByDay,
+                revenueByCategory,
+                revenueByTable,
+                tableOccupancy
+            ] = await Promise.all([
+                api.get(`/api/analytics/summary?${analyticsQuery}`),
+                api.get(`/api/analytics/popular-dishes?${analyticsQuery}`),
+                api.get(`/api/analytics/sales-by-employee?${analyticsQuery}`),
+                api.get("/api/analytics/orders-count-by-day"),
+                api.get(`/api/analytics/revenue-by-category?${analyticsQuery}`),
+                api.get(`/api/analytics/revenue-by-table?${analyticsQuery}`),
+                api.get(`/api/analytics/table-occupancy?${analyticsQuery}`)
+            ]);
+
+            analytics = { summary, popularDishes, salesByEmployee, ordersCountByDay, revenueByCategory, revenueByTable, tableOccupancy };
+        }
 
         Object.assign(state, {
             categories,
@@ -144,13 +165,22 @@ async function loadData() {
             diningTables,
             employees,
             orders,
-            analytics: { summary, popularDishes, salesByEmployee, ordersCountByDay, revenueByCategory, revenueByTable, tableOccupancy }
+            analytics
         });
 
         renderAll();
     } catch (error) {
         showMessage(error.message, true);
     }
+}
+
+function getAnalyticsQuery() {
+    const params = new URLSearchParams();
+    addParam(params, "from", qs("#analyticsFrom")?.value);
+    addParam(params, "to", qs("#analyticsTo")?.value);
+    addParam(params, "employeeId", qs("#analyticsEmployee")?.value);
+    addParam(params, "diningTableId", qs("#analyticsTable")?.value);
+    return params.toString();
 }
 
 function renderAll() {
@@ -164,10 +194,18 @@ function renderAll() {
 
 function renderSelects() {
     fillSelect(qs("#orderTable"), state.diningTables.filter(table => table.status !== "Occupied"), "Оберіть столик", table => `Столик ${table.number} (${table.seatsCount} місць, ${table.status})`);
-    fillSelect(qs("#orderEmployee"), state.employees, "Оберіть працівника", item => `${item.fullName} (${item.position || "працівник"})`);
+    if (isAdmin()) {
+        fillSelect(qs("#orderEmployee"), state.employees, "Оберіть працівника", item => `${item.fullName} (${item.position || "працівник"})`);
+    } else {
+        const employeeSelect = qs("#orderEmployee");
+        employeeSelect.innerHTML = `<option value="${auth.employeeId || ""}">${auth.username}</option>`;
+        employeeSelect.value = auth.employeeId || "";
+    }
     fillSelect(qs("#dishCategory"), state.categories, "Оберіть категорію", item => item.name);
     fillSelect(qs("#filterTable"), state.diningTables, "Усі", table => `Столик ${table.number}`, true);
     fillSelect(qs("#filterEmployee"), state.employees, "Усі", item => item.fullName, true);
+    fillSelect(qs("#analyticsTable"), state.diningTables, "All", table => `Table ${table.number}`, true);
+    fillSelect(qs("#analyticsEmployee"), state.employees, "All", item => item.fullName, true);
 
     qsa(".dish-select").forEach(select => {
         const current = select.value;
@@ -203,11 +241,14 @@ function fillSelect(select, items, placeholder, labelFactory, allowEmpty = false
 function renderAnalytics() {
     const summary = state.analytics.summary || {};
     qs("#totalOrders").textContent = summary.totalOrders || 0;
-    qs("#totalSales").textContent = money(summary.totalSales);
+    qs("#completedOrders").textContent = summary.completedOrders || 0;
+    qs("#cancelledOrders").textContent = summary.cancelledOrders || 0;
+    qs("#activeOrders").textContent = summary.activeOrders || 0;
+    qs("#totalSales").textContent = money(summary.totalRevenue);
     qs("#averageCheck").textContent = money(summary.averageCheck);
 
-    renderBars("#employeeSalesChart", state.analytics.salesByEmployee || [], item => item.employeeName, item => item.totalSales, money);
-    renderBars("#categoryRevenueChart", state.analytics.revenueByCategory || [], item => item.categoryName, item => item.revenue, money);
+    renderBars("#employeeSalesChart", state.analytics.salesByEmployee || [], item => item.employeeName, item => item.totalRevenue, money);
+    renderBars("#categoryRevenueChart", state.analytics.revenueByCategory || [], item => item.categoryName, item => item.totalRevenue, money);
     renderBars("#ordersByDayChart", state.analytics.ordersCountByDay || [], item => new Date(item.date).toLocaleDateString("uk-UA"), item => item.ordersCount, value => `${value} зам.`);
     renderBars("#tableRevenueChart", state.analytics.revenueByTable || [], item => `Столик ${item.tableNumber}`, item => item.totalRevenue, money);
     renderTableOccupancy();
@@ -218,7 +259,7 @@ function renderAnalytics() {
         body.insertAdjacentHTML("beforeend", `
             <tr>
                 <td>${dish.dishName}</td>
-                <td>${dish.totalQuantity}</td>
+                <td>${dish.quantitySold}</td>
                 <td>${money(dish.totalRevenue)}</td>
             </tr>
         `);
@@ -358,7 +399,7 @@ function renderTableOccupancy() {
                     <strong>Столик ${item.tableNumber}</strong>
                     <span>${item.ordersCount} замовлень</span>
                 </div>
-                ${statusBadge(item.status)}
+                ${statusBadge(item.currentStatus)}
             </article>
         `);
     }
@@ -495,6 +536,15 @@ function setupEvents() {
 
     qs("#orderForm").addEventListener("submit", submitOrder);
     qs("#dishForm").addEventListener("submit", submitDish);
+    qs("#analyticsFilters")?.addEventListener("submit", event => {
+        event.preventDefault();
+        loadData();
+    });
+    qs("#resetAnalyticsFilters")?.addEventListener("click", () => {
+        qs("#analyticsFilters").reset();
+        loadData();
+    });
+    qs("#downloadOrdersCsv")?.addEventListener("click", downloadOrdersCsv);
     qs("#tableForm").addEventListener("submit", event => submitDirectory(event, "/api/diningtables", {
         number: Number(qs("#tableNumber").value),
         seatsCount: Number(qs("#tableSeats").value),
@@ -513,7 +563,39 @@ function setupEvents() {
     qs("#orderFilters").addEventListener("submit", submitFilters);
 }
 
+async function downloadOrdersCsv() {
+    const from = qs("#analyticsFrom").value;
+    const to = qs("#analyticsTo").value;
+    if (!from || !to) {
+        showMessage("Select From and To dates before downloading CSV.", true);
+        return;
+    }
+
+    const params = new URLSearchParams(getAnalyticsQuery());
+    params.set("format", "csv");
+    const response = await fetch(`/api/reports/orders/export?${params.toString()}`, {
+        headers: authHeaders()
+    });
+
+    if (!response.ok) {
+        showMessage("CSV export failed.", true);
+        return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `orders_report_${from}_${to}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
 function activateView(viewId) {
+    if (!isAdmin() && viewId !== "orders") {
+        viewId = "orders";
+    }
+
     qsa(".nav-button").forEach(item => item.classList.toggle("active", item.dataset.view === viewId));
     qsa(".view").forEach(item => item.classList.toggle("active", item.id === viewId));
 }
@@ -528,7 +610,7 @@ async function submitOrder(event) {
     try {
         await api.post("/api/orders", {
             diningTableId: Number(qs("#orderTable").value),
-            employeeId: Number(qs("#orderEmployee").value),
+            employeeId: isAdmin() ? Number(qs("#orderEmployee").value) : Number(auth.employeeId),
             items
         });
         qs("#orderForm").reset();
@@ -629,6 +711,20 @@ async function handleDeleteClick(target) {
 }
 
 async function refreshOrdersAndAnalytics() {
+    if (!isAdmin()) {
+        const [orders, tables] = await Promise.all([
+            api.get("/api/orders"),
+            api.get("/api/diningtables")
+        ]);
+
+        state.orders = orders;
+        state.diningTables = tables;
+        renderSelects();
+        renderOrders();
+        renderDirectories();
+        return;
+    }
+
     const [orders, tables, summary, popularDishes, salesByEmployee, ordersCountByDay, revenueByCategory, revenueByTable, tableOccupancy] = await Promise.all([
         api.get("/api/orders"),
         api.get("/api/diningtables"),
@@ -651,6 +747,13 @@ async function refreshOrdersAndAnalytics() {
 }
 
 async function refreshTablesAndAnalytics() {
+    if (!isAdmin()) {
+        state.diningTables = await api.get("/api/diningtables");
+        renderSelects();
+        renderDirectories();
+        return;
+    }
+
     const [tables, summary, revenueByTable, tableOccupancy] = await Promise.all([
         api.get("/api/diningtables"),
         api.get("/api/analytics/summary"),
@@ -671,7 +774,25 @@ async function refreshTablesAndAnalytics() {
     renderDirectories();
 }
 
+function setupAuthUi() {
+    const logout = document.createElement("button");
+    logout.className = "secondary-button";
+    logout.type = "button";
+    logout.textContent = "Logout";
+    logout.addEventListener("click", () => {
+        localStorage.removeItem("auth");
+        window.location.href = "/login.html";
+    });
+    qs(".topbar").appendChild(logout);
+
+    if (!isAdmin()) {
+        qsa('[data-view="dashboard"], [data-view="menu"], [data-view="directories"]').forEach(item => item.hidden = true);
+        qs("#filterEmployee")?.closest("label")?.setAttribute("hidden", "hidden");
+    }
+}
+
+setupAuthUi();
 setupEvents();
-activateView("dashboard");
+activateView(isAdmin() ? "dashboard" : "orders");
 addOrderItemRow();
 loadData();

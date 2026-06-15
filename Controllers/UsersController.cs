@@ -1,5 +1,4 @@
 using CateringAnalyticsSystem.DTOs;
-using CateringAnalyticsSystem.Models;
 using CateringAnalyticsSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,34 +6,33 @@ using Microsoft.AspNetCore.Mvc;
 namespace CateringAnalyticsSystem.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin,Waiter")]
+[Authorize(Roles = "Admin")]
 [Route("api/[controller]")]
-public class DishesController : ControllerBase
+public class UsersController : ControllerBase
 {
-    private readonly IDishService _dishService;
+    private readonly IUserService _userService;
 
-    public DishesController(IDishService dishService)
+    public UsersController(IUserService userService)
     {
-        _dishService = dishService;
+        _userService = userService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<Dish>>> GetAll() => Ok(await _dishService.GetAllAsync());
+    public async Task<ActionResult<List<UserDto>>> GetAll() => Ok(await _userService.GetAllAsync());
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Dish>> GetById(int id)
+    public async Task<ActionResult<UserDto>> GetById(int id)
     {
-        var dish = await _dishService.GetByIdAsync(id);
-        return dish is null ? NotFound() : Ok(dish);
+        var user = await _userService.GetByIdAsync(id);
+        return user is null ? NotFound() : Ok(user);
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpPost]
-    public async Task<ActionResult<Dish>> Create(CreateDishDto dto)
+    public async Task<ActionResult<UserDto>> Create(CreateUserDto dto)
     {
         try
         {
-            var created = await _dishService.CreateAsync(dto);
+            var created = await _userService.CreateAsync(dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException ex)
@@ -43,13 +41,12 @@ public class DishesController : ControllerBase
         }
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, UpdateDishDto dto)
+    public async Task<IActionResult> Update(int id, UpdateUserDto dto)
     {
         try
         {
-            var updated = await _dishService.UpdateAsync(id, dto);
+            var updated = await _userService.UpdateAsync(id, dto);
             return updated ? NoContent() : NotFound();
         }
         catch (ArgumentException ex)
@@ -58,11 +55,10 @@ public class DishesController : ControllerBase
         }
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _dishService.DeleteAsync(id);
+        var deleted = await _userService.DeleteAsync(id);
         return deleted ? NoContent() : NotFound();
     }
 }

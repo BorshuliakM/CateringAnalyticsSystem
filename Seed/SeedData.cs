@@ -1,18 +1,18 @@
 using CateringAnalyticsSystem.Data;
 using CateringAnalyticsSystem.Models;
+using CateringAnalyticsSystem.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace CateringAnalyticsSystem.Seed;
 
 public static class SeedData
 {
-    public static async Task InitializeAsync(ApplicationDbContext context)
+    public static async Task InitializeAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
     {
-        if (await context.Categories.AnyAsync() || await context.DiningTables.AnyAsync())
-        {
-            return;
-        }
+        await EnsureAuthSchemaAsync(context);
 
+        if (!await context.Categories.AnyAsync() && !await context.DiningTables.AnyAsync())
+        {
         var categories = new List<Category>
         {
             new() { Name = "Сніданки", Description = "Страви для ранкового меню" },
@@ -56,7 +56,7 @@ public static class SeedData
             new() { Number = 5, SeatsCount = 6, Status = "Free" },
             new() { Number = 6, SeatsCount = 6, Status = "Reserved" },
             new() { Number = 7, SeatsCount = 8, Status = "Free" },
-            new() { Number = 8, SeatsCount = 4, Status = "Cleaning" }
+            new() { Number = 8, SeatsCount = 4, Status = "Free" }
         };
 
         var employees = new List<Employee>
@@ -83,13 +83,98 @@ public static class SeedData
 
         diningTables[3].Status = "Occupied";
         diningTables[4].Status = "Occupied";
-        diningTables[7].Status = "Cleaning";
+        diningTables[7].Status = "Free";
 
         await context.Orders.AddRangeAsync(orders);
 
-        await context.Users.AddRangeAsync(
-            new User { Username = "admin", PasswordHash = "demo-admin-hash", Role = "Admin" },
-            new User { Username = "manager", PasswordHash = "demo-manager-hash", Role = "Manager" });
+        await context.SaveChangesAsync();
+        }
+
+        await EnsureDefaultUsersAsync(context, passwordHasher);
+    }
+
+    private static async Task EnsureAuthSchemaAsync(ApplicationDbContext context)
+    {
+        await context.Database.ExecuteSqlRawAsync("""
+            UPDATE DiningTables SET Status = 'Free' WHERE Status = 'Cleaning';
+            """);
+
+        await context.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('Users', 'EmployeeId') IS NULL
+            BEGIN
+                ALTER TABLE Users ADD EmployeeId INT NULL;
+            END
+            """);
+
+        await context.Database.ExecuteSqlRawAsync("""
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE name = 'IX_Users_Username'
+                  AND object_id = OBJECT_ID('Users'))
+            BEGIN
+                CREATE UNIQUE INDEX IX_Users_Username ON Users(Username);
+            END
+            """);
+
+        await context.Database.ExecuteSqlRawAsync("""
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.foreign_keys
+                WHERE name = 'FK_Users_Employees_EmployeeId')
+            BEGIN
+                ALTER TABLE Users
+                ADD CONSTRAINT FK_Users_Employees_EmployeeId
+                FOREIGN KEY (EmployeeId) REFERENCES Employees(Id)
+                ON DELETE SET NULL;
+            END
+            """);
+    }
+
+    private static async Task EnsureDefaultUsersAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
+    {
+        var admin = await context.Users.FirstOrDefaultAsync(user => user.Username == "admin");
+        if (admin is null)
+        {
+            await context.Users.AddAsync(new User
+            {
+                Username = "admin",
+                PasswordHash = passwordHasher.Hash("Admin123!"),
+                Role = "Admin"
+            });
+        }
+        else
+        {
+            admin.PasswordHash = passwordHasher.Hash("Admin123!");
+            admin.Role = "Admin";
+            admin.EmployeeId = null;
+        }
+
+        var waiter = await context.Users.FirstOrDefaultAsync(user => user.Username == "waiter");
+        if (waiter is null)
+        {
+            var waiterEmployeeId = await context.Employees
+                .OrderBy(employee => employee.Id)
+                .Select(employee => (int?)employee.Id)
+                .FirstOrDefaultAsync();
+
+            await context.Users.AddAsync(new User
+            {
+                Username = "waiter",
+                PasswordHash = passwordHasher.Hash("Waiter123!"),
+                Role = "Waiter",
+                EmployeeId = waiterEmployeeId
+            });
+        }
+        else
+        {
+            waiter.PasswordHash = passwordHasher.Hash("Waiter123!");
+            waiter.Role = "Waiter";
+            waiter.EmployeeId ??= await context.Employees
+                .OrderBy(employee => employee.Id)
+                .Select(employee => (int?)employee.Id)
+                .FirstOrDefaultAsync();
+        }
 
         await context.SaveChangesAsync();
     }

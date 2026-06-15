@@ -97,7 +97,7 @@ INSERT INTO DiningTables (Number, SeatsCount, Status) VALUES
 (5, 6, N'Occupied'),
 (6, 6, N'Reserved'),
 (7, 8, N'Free'),
-(8, 4, N'Cleaning');
+(8, 4, N'Free');
 
 INSERT INTO Employees (FullName, Position, Phone, Email) VALUES
 (N'Наталія Романюк', N'Офіціант', N'+380661010101', N'nataliia.romaniuk@restaurant.local'),

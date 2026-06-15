@@ -7,6 +7,14 @@ namespace CateringAnalyticsSystem.Services;
 
 public class OrderService : IOrderService
 {
+    private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "New",
+        "InProgress",
+        "Completed",
+        "Cancelled"
+    };
+
     private readonly ApplicationDbContext _context;
 
     public OrderService(ApplicationDbContext context)
@@ -69,24 +77,40 @@ public class OrderService : IOrderService
         return order is null ? null : ToDetailsDto(order);
     }
 
-    public async Task<OrderDetailsDto> CreateAsync(CreateOrderDto dto)
+    public async Task<OrderDetailsDto> CreateAsync(CreateOrderDto dto, bool isAdmin, int? currentEmployeeId)
     {
         if (dto.Items.Count == 0)
         {
             throw new ArgumentException("Order cannot be created without items.");
         }
 
+        var employeeId = dto.EmployeeId;
+        if (!isAdmin)
+        {
+            if (currentEmployeeId is null)
+            {
+                throw new UnauthorizedAccessException("Waiter account is not connected to an employee.");
+            }
+
+            if (dto.EmployeeId != 0 && dto.EmployeeId != currentEmployeeId.Value)
+            {
+                throw new UnauthorizedAccessException("Waiter cannot create orders for another employee.");
+            }
+
+            employeeId = currentEmployeeId.Value;
+        }
+
         var table = await _context.DiningTables.FirstOrDefaultAsync(t => t.Id == dto.DiningTableId);
-        var employeeExists = await _context.Employees.AnyAsync(e => e.Id == dto.EmployeeId);
+        var employeeExists = await _context.Employees.AnyAsync(e => e.Id == employeeId);
 
         if (table is null)
         {
             throw new ArgumentException("Selected dining table does not exist.");
         }
 
-        if (table.Status == "Occupied")
+        if (table.Status != "Free")
         {
-            throw new ArgumentException("Cannot create a new active order for an occupied dining table.");
+            throw new ArgumentException("Cannot create a new active order for a dining table that is not free.");
         }
 
         if (!employeeExists)
@@ -97,7 +121,7 @@ public class OrderService : IOrderService
         var order = new Order
         {
             DiningTableId = dto.DiningTableId,
-            EmployeeId = dto.EmployeeId,
+            EmployeeId = employeeId,
             OrderDate = DateTime.UtcNow,
             Status = "New"
         };
@@ -138,11 +162,11 @@ public class OrderService : IOrderService
         return created!;
     }
 
-    public async Task<bool> ChangeStatusAsync(int id, string status)
+    public async Task<bool> ChangeStatusAsync(int id, string status, bool isAdmin, int? currentEmployeeId)
     {
-        if (string.IsNullOrWhiteSpace(status))
+        if (string.IsNullOrWhiteSpace(status) || !AllowedStatuses.Contains(status))
         {
-            throw new ArgumentException("Order status cannot be empty.");
+            throw new ArgumentException("Order status must be New, InProgress, Completed or Cancelled.");
         }
 
         var order = await _context.Orders.FindAsync(id);
@@ -151,7 +175,12 @@ public class OrderService : IOrderService
             return false;
         }
 
-        order.Status = status.Trim();
+        if (!isAdmin && order.EmployeeId != currentEmployeeId)
+        {
+            throw new UnauthorizedAccessException("Waiter can update only own orders.");
+        }
+
+        order.Status = NormalizeStatus(status);
         await UpdateDiningTableStatusAfterOrderStatusChangeAsync(order);
         await _context.SaveChangesAsync();
         return true;
@@ -178,7 +207,9 @@ public class OrderService : IOrderService
             OrderDate = order.OrderDate,
             TotalAmount = order.TotalAmount,
             Status = order.Status,
+            DiningTableId = order.DiningTableId,
             DiningTableNumber = order.DiningTable?.Number ?? 0,
+            EmployeeId = order.EmployeeId,
             EmployeeName = order.Employee?.FullName ?? string.Empty,
             Items = order.OrderItems.Select(item => new OrderItemDetailsDto
             {
@@ -214,7 +245,12 @@ public class OrderService : IOrderService
 
         if (!hasOtherActiveOrders)
         {
-            table.Status = normalizedStatus == "Completed" ? "Cleaning" : "Free";
+            table.Status = "Free";
         }
+    }
+
+    private static string NormalizeStatus(string status)
+    {
+        return AllowedStatuses.First(allowed => string.Equals(allowed, status, StringComparison.OrdinalIgnoreCase));
     }
 }

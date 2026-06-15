@@ -1,10 +1,12 @@
 using CateringAnalyticsSystem.DTOs;
 using CateringAnalyticsSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CateringAnalyticsSystem.Controllers;
 
 [ApiController]
+[Authorize(Roles = "Admin,Waiter")]
 [Route("api/[controller]")]
 public class OrdersController : ControllerBase
 {
@@ -23,6 +25,11 @@ public class OrdersController : ControllerBase
         [FromQuery] int? employeeId,
         [FromQuery] string? status)
     {
+        if (!User.IsAdmin())
+        {
+            employeeId = User.GetEmployeeId();
+        }
+
         return Ok(await _orderService.GetAllAsync(from, to, diningTableId, employeeId, status));
     }
 
@@ -30,6 +37,11 @@ public class OrdersController : ControllerBase
     public async Task<ActionResult<OrderDetailsDto>> GetById(int id)
     {
         var order = await _orderService.GetByIdAsync(id);
+        if (order is not null && !User.IsAdmin() && order.EmployeeId != User.GetEmployeeId())
+        {
+            return Forbid();
+        }
+
         return order is null ? NotFound() : Ok(order);
     }
 
@@ -38,12 +50,16 @@ public class OrdersController : ControllerBase
     {
         try
         {
-            var created = await _orderService.CreateAsync(dto);
+            var created = await _orderService.CreateAsync(dto, User.IsAdmin(), User.GetEmployeeId());
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
     }
 
@@ -52,15 +68,20 @@ public class OrdersController : ControllerBase
     {
         try
         {
-            var updated = await _orderService.ChangeStatusAsync(id, request.Status);
+            var updated = await _orderService.ChangeStatusAsync(id, request.Status, User.IsAdmin(), User.GetEmployeeId());
             return updated ? NoContent() : NotFound();
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

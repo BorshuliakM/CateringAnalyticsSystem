@@ -14,4 +14,7 @@ public class User
 
     [Required, MaxLength(50)]
     public string Role { get; set; } = "User";
+
+    public int? EmployeeId { get; set; }
+    public Employee? Employee { get; set; }
 }

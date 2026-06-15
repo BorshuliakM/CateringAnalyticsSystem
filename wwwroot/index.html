@@ -16,20 +16,7 @@
             </span>
         </div>
 
-        <nav class="nav" aria-label="Основна навігація">
-            <button class="nav-button active" data-view="dashboard" title="Аналітика">
-                <span>📊</span> Аналітика
-            </button>
-            <button class="nav-button" data-view="orders" title="Замовлення">
-                <span>🧾</span> Замовлення
-            </button>
-            <button class="nav-button" data-view="menu" title="Меню">
-                <span>🍽</span> Меню
-            </button>
-            <button class="nav-button" data-view="directories" title="Довідники">
-                <span>👥</span> Довідники
-            </button>
-        </nav>
+        <nav id="mainNav" class="nav" aria-label="Основна навігація"></nav>
 
         <a class="swagger-link" href="/swagger" target="_blank" rel="noreferrer">Swagger API</a>
     </aside>
@@ -40,7 +27,10 @@
                 <p class="eyebrow">Дипломний навчальний проєкт</p>
                 <h1>Інформаційна аналітична система закладу громадського харчування</h1>
             </div>
-            <button id="refreshBtn" class="primary-button" type="button">Оновити дані</button>
+            <div class="topbar-actions">
+                <div id="currentUserInfo" class="current-user-info"></div>
+                <button id="refreshBtn" class="primary-button" type="button">Оновити дані</button>
+            </div>
         </header>
 
         <section id="message" class="message" hidden></section>
@@ -155,6 +145,93 @@
                     <div id="tableOccupancyList" class="entity-list"></div>
                 </section>
             </div>
+        </section>
+
+        <section id="reports" class="view">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Звіти</h2>
+                </div>
+                <form id="reportsFilters" class="filters-grid">
+                    <label>
+                        Від
+                        <input id="reportFrom" type="date" required>
+                    </label>
+                    <label>
+                        До
+                        <input id="reportTo" type="date" required>
+                    </label>
+                    <label>
+                        Тип звіту
+                        <select id="reportType">
+                            <option value="orders">Замовлення</option>
+                            <option value="sales">Продажі</option>
+                            <option value="dishes">Страви</option>
+                            <option value="employees">Працівники</option>
+                            <option value="tables">Столики</option>
+                            <option value="daily">Денний звіт</option>
+                        </select>
+                    </label>
+                    <label>
+                        Працівник
+                        <select id="reportEmployee">
+                            <option value="">Усі</option>
+                        </select>
+                    </label>
+                    <label>
+                        Столик
+                        <select id="reportTable">
+                            <option value="">Усі</option>
+                        </select>
+                    </label>
+                    <label>
+                        Категорія
+                        <select id="reportCategory">
+                            <option value="">Усі</option>
+                        </select>
+                    </label>
+                    <label>
+                        Страва
+                        <select id="reportDish">
+                            <option value="">Усі</option>
+                        </select>
+                    </label>
+                    <label>
+                        Статус
+                        <select id="reportStatus">
+                            <option value="">Усі</option>
+                            <option>New</option>
+                            <option>InProgress</option>
+                            <option>Completed</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </label>
+                    <label>
+                        Мін. сума
+                        <input id="reportMinTotal" type="number" min="0" step="0.01">
+                    </label>
+                    <label>
+                        Макс. сума
+                        <input id="reportMaxTotal" type="number" min="0" step="0.01">
+                    </label>
+                    <button class="secondary-button" type="submit">Застосувати фільтри</button>
+                    <button id="resetReportsFilters" class="secondary-button" type="button">Скинути</button>
+                    <button id="downloadReportCsv" class="primary-button" type="button">Завантажити CSV</button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2 id="reportResultTitle">Результати звіту</h2>
+                </div>
+                <div id="reportMessage" class="empty" hidden></div>
+                <div class="table-wrap">
+                    <table id="reportTableResult">
+                        <thead id="reportHead"></thead>
+                        <tbody id="reportBody"></tbody>
+                    </table>
+                </div>
+            </section>
         </section>
 
         <section id="orders" class="view">
